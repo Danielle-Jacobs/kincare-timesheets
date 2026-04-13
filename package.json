@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
-    "start": "node .next/standalone/server.js",
+    "build": "prisma generate && next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
+    "start": "npx prisma migrate deploy && node .next/standalone/server.js",
     "lint": "eslint"
   },
   "dependencies": {
