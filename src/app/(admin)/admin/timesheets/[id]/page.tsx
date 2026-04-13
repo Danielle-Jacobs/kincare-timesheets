@@ -2,13 +2,21 @@
 
 import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getDaysInMonth, getDay } from "date-fns";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle, XCircle, Camera } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Camera,
+  ImageOff,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface TimesheetEntry {
@@ -38,7 +46,6 @@ interface Timesheet {
   photos: TimesheetPhoto[];
 }
 
-const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthNames = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -60,7 +67,7 @@ export default function AdminTimesheetReview({
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
-  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const [expandedPhoto, setExpandedPhoto] = useState<number | null>(null);
 
   const { data: timesheet, isLoading } = useQuery<Timesheet>({
     queryKey: ["timesheet", id],
@@ -104,197 +111,182 @@ export default function AdminTimesheetReview({
   if (isLoading) {
     return (
       <div className="space-y-3 max-w-3xl">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
   if (!timesheet) return <div>Timesheet not found</div>;
 
-  const daysInMonth = getDaysInMonth(
-    new Date(timesheet.year, timesheet.month - 1)
-  );
-
-  function calculateHours(clockIn: string | null, clockOut: string | null) {
-    if (!clockIn || !clockOut) return null;
-    const [inH, inM] = clockIn.split(":").map(Number);
-    const [outH, outM] = clockOut.split(":").map(Number);
-    const diff = outH * 60 + outM - (inH * 60 + inM);
-    if (diff <= 0) return null;
-    const hours = Math.floor(diff / 60);
-    const mins = diff % 60;
-    return `${hours}h${mins > 0 ? ` ${mins}m` : ""}`;
-  }
-
-  const totalMinutes = timesheet.entries.reduce((acc, e) => {
-    if (!e.clockIn || !e.clockOut) return acc;
-    const [inH, inM] = e.clockIn.split(":").map(Number);
-    const [outH, outM] = e.clockOut.split(":").map(Number);
-    const diff = outH * 60 + outM - (inH * 60 + inM);
-    return acc + (diff > 0 ? diff : 0);
-  }, 0);
+  const hasPhotos = timesheet.photos.length > 0;
 
   return (
     <div className="space-y-4 max-w-3xl">
-      {/* Header */}
+      {/* Back + Header */}
+      <div className="flex items-center gap-3">
+        <Link href="/admin/timesheets">
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-lg font-bold">
+            {timesheet.carer.name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {timesheet.client.name} &middot;{" "}
+            {monthNames[timesheet.month - 1]} {timesheet.year}
+          </p>
+        </div>
+        <Badge className={statusColors[timesheet.status]}>
+          {timesheet.status}
+        </Badge>
+      </div>
+
+      {/* Review comment */}
+      {timesheet.reviewComment && (
+        <div className="text-sm bg-muted p-3 rounded-lg">
+          <span className="font-medium">Review note: </span>
+          {timesheet.reviewComment}
+        </div>
+      )}
+
+      {/* Photos — Primary content */}
       <Card>
-        <CardContent className="p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold">
-              {monthNames[timesheet.month - 1]} {timesheet.year}
-            </h1>
-            <Badge className={statusColors[timesheet.status]}>
-              {timesheet.status}
-            </Badge>
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Camera className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">
+              Uploaded Timesheet Photos
+            </h2>
+            {hasPhotos && (
+              <Badge variant="secondary" className="text-xs">
+                {timesheet.photos.length}
+              </Badge>
+            )}
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <span className="font-medium">Carer: </span>
-              {timesheet.carer.name}
+
+          {hasPhotos ? (
+            <div className="grid grid-cols-2 gap-3">
+              {timesheet.photos.map((photo, idx) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => setExpandedPhoto(idx)}
+                  className="cursor-pointer group"
+                >
+                  <div className="aspect-[3/4] rounded-lg border bg-muted overflow-hidden">
+                    <img
+                      src={`/api/uploads/${photo.path}`}
+                      alt={photo.filename}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    />
+                  </div>
+                </button>
+              ))}
             </div>
-            <div>
-              <span className="font-medium">Client: </span>
-              {timesheet.client.name}
-            </div>
-          </div>
-          <div className="text-sm font-medium pt-2 border-t">
-            Total: {Math.floor(totalMinutes / 60)}h{" "}
-            {totalMinutes % 60 > 0 ? `${totalMinutes % 60}m` : ""} |{" "}
-            {timesheet.entries.filter((e) => e.clockIn && e.clockOut).length}{" "}
-            days worked
-          </div>
-          {timesheet.reviewComment && (
-            <div className="text-sm bg-muted p-2 rounded mt-2">
-              <span className="font-medium">Review note: </span>
-              {timesheet.reviewComment}
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <ImageOff className="h-12 w-12 mb-3 opacity-30" />
+              <p className="text-sm font-medium">No photos uploaded yet</p>
+              <p className="text-xs mt-1">
+                The carer hasn&apos;t uploaded any timesheet photos
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Entries table */}
+      {/* Full-size photo viewer with navigation */}
+      {expandedPhoto !== null && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center"
+          onClick={() => setExpandedPhoto(null)}
+        >
+          <div className="relative w-full h-full flex items-center justify-center p-4">
+            <img
+              src={`/api/uploads/${timesheet.photos[expandedPhoto].path}`}
+              alt="Paper timesheet"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+
+            {/* Nav arrows */}
+            {timesheet.photos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedPhoto(
+                      (expandedPhoto - 1 + timesheet.photos.length) %
+                        timesheet.photos.length
+                    );
+                  }}
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </button>
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedPhoto(
+                      (expandedPhoto + 1) % timesheet.photos.length
+                    );
+                  }}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </button>
+              </>
+            )}
+
+            {/* Counter */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+              {expandedPhoto + 1} / {timesheet.photos.length}
+            </div>
+
+            {/* Close */}
+            <button
+              type="button"
+              className="absolute top-4 right-4 bg-white/20 hover:bg-white/40 text-white rounded-full p-2 transition-colors"
+              onClick={() => setExpandedPhoto(null)}
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Carer details */}
       <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left p-2 w-12">Day</th>
-                  <th className="text-left p-2">In</th>
-                  <th className="text-left p-2">Out</th>
-                  <th className="text-left p-2">Hours</th>
-                  <th className="text-center p-2">Carer Sig</th>
-                  <th className="text-center p-2">Client Sig</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(
-                  (day) => {
-                    const entry = timesheet.entries.find(
-                      (e) => e.day === day
-                    );
-                    if (!entry?.clockIn && !entry?.clockOut) return null;
-                    const dow =
-                      dayNames[
-                        getDay(
-                          new Date(timesheet.year, timesheet.month - 1, day)
-                        )
-                      ];
-                    return (
-                      <tr key={day} className="border-t">
-                        <td className="p-2 font-medium">
-                          {day}{" "}
-                          <span className="text-muted-foreground text-xs">
-                            {dow}
-                          </span>
-                        </td>
-                        <td className="p-2">{entry?.clockIn || "—"}</td>
-                        <td className="p-2">{entry?.clockOut || "—"}</td>
-                        <td className="p-2">
-                          {calculateHours(
-                            entry?.clockIn ?? null,
-                            entry?.clockOut ?? null
-                          ) || "—"}
-                        </td>
-                        <td className="p-2 text-center">
-                          {entry?.carerSignature ? (
-                            <img
-                              src={entry.carerSignature}
-                              alt="Carer signature"
-                              className="h-8 inline-block"
-                            />
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="p-2 text-center">
-                          {entry?.clientSignature ? (
-                            <img
-                              src={entry.clientSignature}
-                              alt="Client signature"
-                              className="h-8 inline-block"
-                            />
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
-              </tbody>
-            </table>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <span className="text-muted-foreground">Carer</span>
+              <p className="font-medium">{timesheet.carer.name}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Client</span>
+              <p className="font-medium">{timesheet.client.name}</p>
+            </div>
+            {timesheet.carer.idNumber && (
+              <div>
+                <span className="text-muted-foreground">ID Number</span>
+                <p className="font-medium">{timesheet.carer.idNumber}</p>
+              </div>
+            )}
+            {timesheet.carer.contactNumber && (
+              <div>
+                <span className="text-muted-foreground">Contact</span>
+                <p className="font-medium">{timesheet.carer.contactNumber}</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Uploaded Photos */}
-      {timesheet.photos.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <Camera className="h-4 w-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">
-                Paper Timesheet Photos
-              </h2>
-              <Badge variant="secondary" className="text-xs">
-                {timesheet.photos.length}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {timesheet.photos.map((photo) => (
-                <button
-                  key={photo.id}
-                  type="button"
-                  onClick={() => setExpandedPhoto(photo.path)}
-                  className="cursor-pointer"
-                >
-                  <img
-                    src={`/api/uploads/${photo.path}`}
-                    alt={photo.filename}
-                    className="w-full aspect-square object-cover rounded-lg border hover:ring-2 hover:ring-primary transition-all"
-                  />
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Full-size photo overlay */}
-      {expandedPhoto && (
-        <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setExpandedPhoto(null)}
-        >
-          <img
-            src={`/api/uploads/${expandedPhoto}`}
-            alt="Paper timesheet"
-            className="max-w-full max-h-full object-contain rounded-lg"
-          />
-        </div>
-      )}
 
       {/* Approve/Reject */}
       {timesheet.status === "SUBMITTED" && (
@@ -342,6 +334,19 @@ export default function AdminTimesheetReview({
                 </Button>
               )}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Status for already reviewed */}
+      {(timesheet.status === "APPROVED" || timesheet.status === "REJECTED") && (
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Badge className={`${statusColors[timesheet.status]} text-sm px-3 py-1`}>
+              {timesheet.status === "APPROVED"
+                ? "This timesheet has been approved"
+                : "This timesheet was rejected"}
+            </Badge>
           </CardContent>
         </Card>
       )}

@@ -15,6 +15,8 @@ export async function GET() {
     include: {
       client: { select: { name: true } },
       carer: { select: { name: true } },
+      photos: { select: { id: true, path: true, createdAt: true }, orderBy: { createdAt: "desc" } },
+      _count: { select: { photos: true, entries: true } },
     },
     orderBy: [{ year: "desc" }, { month: "desc" }],
   });
