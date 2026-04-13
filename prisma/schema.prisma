@@ -22,6 +22,7 @@ model User {
 
   timesheets        Timesheet[]  @relation("CarerTimesheets")
   reviewedTimesheets Timesheet[] @relation("ReviewerTimesheets")
+  carerClients      CarerClient[]
 }
 
 model Client {
@@ -33,7 +34,22 @@ model Client {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  timesheets Timesheet[]
+  timesheets   Timesheet[]
+  carerClients CarerClient[]
+}
+
+model CarerClient {
+  id        String   @id @default(cuid())
+  carerId   String
+  clientId  String
+  createdAt DateTime @default(now())
+
+  carer  User   @relation(fields: [carerId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([carerId, clientId])
+  @@index([carerId])
+  @@index([clientId])
 }
 
 model Timesheet {

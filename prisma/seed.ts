@@ -83,6 +83,28 @@ async function main() {
     },
   });
 
+  // Assign clients to carers
+  await prisma.carerClient.upsert({
+    where: { carerId_clientId: { carerId: carer1.id, clientId: client1.id } },
+    update: {},
+    create: { carerId: carer1.id, clientId: client1.id },
+  });
+  await prisma.carerClient.upsert({
+    where: { carerId_clientId: { carerId: carer1.id, clientId: client2.id } },
+    update: {},
+    create: { carerId: carer1.id, clientId: client2.id },
+  });
+  await prisma.carerClient.upsert({
+    where: { carerId_clientId: { carerId: carer2.id, clientId: client2.id } },
+    update: {},
+    create: { carerId: carer2.id, clientId: client2.id },
+  });
+  await prisma.carerClient.upsert({
+    where: { carerId_clientId: { carerId: carer2.id, clientId: client3.id } },
+    update: {},
+    create: { carerId: carer2.id, clientId: client3.id },
+  });
+
   console.log("Seeded successfully:", {
     admin: admin.email,
     carer1: carer1.email,

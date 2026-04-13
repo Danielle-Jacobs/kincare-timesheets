@@ -20,11 +20,19 @@ export async function GET() {
       contactNumber: true,
       uploadToken: true,
       active: true,
+      carerClients: {
+        include: { client: { select: { id: true, name: true } } },
+      },
     },
     orderBy: { name: "asc" },
   });
 
-  return NextResponse.json(carers);
+  const result = carers.map(({ carerClients, ...carer }) => ({
+    ...carer,
+    clients: carerClients.map((cc) => cc.client),
+  }));
+
+  return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {

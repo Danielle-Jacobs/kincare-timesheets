@@ -15,7 +15,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Copy, Link } from "lucide-react";
+import { Plus, Copy, Link, Users } from "lucide-react";
+
+interface ClientInfo {
+  id: string;
+  name: string;
+}
 
 interface Carer {
   id: string;
@@ -25,11 +30,14 @@ interface Carer {
   contactNumber: string | null;
   uploadToken: string | null;
   active: boolean;
+  clients: ClientInfo[];
 }
 
 export default function CarersPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState<string | null>(null);
+  const [selectedClients, setSelectedClients] = useState<string[]>([]);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -64,6 +72,42 @@ export default function CarersPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const { data: allClients } = useQuery<ClientInfo[]>({
+    queryKey: ["clients"],
+    queryFn: () => fetch("/api/clients").then((r) => r.json()),
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: async ({ carerId, clientIds }: { carerId: string; clientIds: string[] }) => {
+      const res = await fetch(`/api/carers/${carerId}/clients`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientIds }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["carers"] });
+      setAssignOpen(null);
+      toast.success("Client assignments updated");
+    },
+    onError: () => toast.error("Failed to update assignments"),
+  });
+
+  const openAssignDialog = (carer: Carer) => {
+    setSelectedClients(carer.clients.map((c) => c.id));
+    setAssignOpen(carer.id);
+  };
+
+  const toggleClient = (clientId: string) => {
+    setSelectedClients((prev) =>
+      prev.includes(clientId)
+        ? prev.filter((id) => id !== clientId)
+        : [...prev, clientId]
+    );
+  };
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -150,6 +194,29 @@ export default function CarersPage() {
                   {carer.active ? "Active" : "Inactive"}
                 </Badge>
               </div>
+              {/* Assigned clients */}
+              <div className="flex items-center gap-2 pt-1 border-t">
+                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <div className="flex-1 flex flex-wrap gap-1">
+                  {carer.clients.length > 0 ? (
+                    carer.clients.map((c) => (
+                      <Badge key={c.id} variant="secondary" className="text-xs">
+                        {c.name.split(" ").slice(-1)[0]}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No clients assigned</span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 shrink-0 text-xs"
+                  onClick={() => openAssignDialog(carer)}
+                >
+                  Assign
+                </Button>
+              </div>
               {carer.uploadToken && (
                 <div className="flex items-center gap-2 pt-1 border-t">
                   <Link className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -176,6 +243,50 @@ export default function CarersPage() {
           </Card>
         ))}
       </div>
+
+      {/* Assign Clients Dialog */}
+      <Dialog
+        open={!!assignOpen}
+        onOpenChange={(open) => { if (!open) setAssignOpen(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Assign Clients to{" "}
+              {carers?.find((c) => c.id === assignOpen)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {allClients?.map((client) => (
+              <label
+                key={client.id}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedClients.includes(client.id)}
+                  onChange={() => toggleClient(client.id)}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <span className="text-sm">{client.name}</span>
+              </label>
+            ))}
+          </div>
+          <Button
+            className="w-full"
+            onClick={() =>
+              assignOpen &&
+              assignMutation.mutate({
+                carerId: assignOpen,
+                clientIds: selectedClients,
+              })
+            }
+            disabled={assignMutation.isPending}
+          >
+            {assignMutation.isPending ? "Saving..." : "Save Assignments"}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

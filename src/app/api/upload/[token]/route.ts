@@ -23,7 +23,10 @@ export async function GET(
   }
 
   const clients = await prisma.client.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      carerClients: { some: { carerId: carer.id } },
+    },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
@@ -93,6 +96,19 @@ export async function POST(
     return NextResponse.json(
       { error: "Client, month, and year are required" },
       { status: 400 }
+    );
+  }
+
+  // Verify carer is assigned to this client
+  const assignment = await prisma.carerClient.findUnique({
+    where: {
+      carerId_clientId: { carerId: carer.id, clientId },
+    },
+  });
+  if (!assignment) {
+    return NextResponse.json(
+      { error: "You are not assigned to this client" },
+      { status: 403 }
     );
   }
 

@@ -28,6 +28,25 @@ export async function POST(req: Request) {
 
   const body = await req.json();
 
+  // Verify carer is assigned to this client
+  const role = (session.user as Record<string, unknown>).role as string;
+  if (role !== "ADMIN") {
+    const assignment = await prisma.carerClient.findUnique({
+      where: {
+        carerId_clientId: {
+          carerId: session.user.id,
+          clientId: body.clientId,
+        },
+      },
+    });
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "You are not assigned to this client" },
+        { status: 403 }
+      );
+    }
+  }
+
   // Check for existing timesheet
   const existing = await prisma.timesheet.findUnique({
     where: {

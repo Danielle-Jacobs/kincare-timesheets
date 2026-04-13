@@ -6,8 +6,15 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json([], { status: 401 });
 
+  const role = (session.user as Record<string, unknown>).role as string;
+
   const clients = await prisma.client.findMany({
-    where: { active: true },
+    where: {
+      active: true,
+      ...(role !== "ADMIN" && {
+        carerClients: { some: { carerId: session.user.id } },
+      }),
+    },
     orderBy: { name: "asc" },
   });
 
