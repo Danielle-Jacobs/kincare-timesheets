@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { readFile } from "fs/promises";
 import path from "path";
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
