@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  password      String
+  role          String   @default("CARER") // CARER or ADMIN
+  uploadToken   String?  @unique
+  idNumber      String?
+  contactNumber String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  timesheets        Timesheet[]  @relation("CarerTimesheets")
+  reviewedTimesheets Timesheet[] @relation("ReviewerTimesheets")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timesheets Timesheet[]
+}
+
+model Timesheet {
+  id            String   @id @default(cuid())
+  month         Int // 1-12
+  year          Int
+  status        String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
+  reviewComment String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  carerId      String
+  carer        User   @relation("CarerTimesheets", fields: [carerId], references: [id])
+  clientId     String
+  client       Client @relation(fields: [clientId], references: [id])
+  reviewedById String?
+  reviewedBy   User?  @relation("ReviewerTimesheets", fields: [reviewedById], references: [id])
+
+  entries TimesheetEntry[]
+  photos  TimesheetPhoto[]
+
+  @@unique([carerId, clientId, month, year])
+  @@index([carerId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model TimesheetEntry {
+  id              String   @id @default(cuid())
+  day             Int // 1-31
+  clockIn         String?  // "HH:MM"
+  clockOut        String?  // "HH:MM"
+  carerSignature  String?  // base64 data URL
+  clientSignature String?  // base64 data URL
+  carerSignedAt   DateTime?
+  clientSignedAt  DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  @@unique([timesheetId, day])
+}
+
+model TimesheetPhoto {
+  id          String   @id @default(cuid())
+  filename    String
+  path        String
+  createdAt   DateTime @default(now())
+
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  @@index([timesheetId])
+}
