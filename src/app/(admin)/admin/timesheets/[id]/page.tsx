@@ -321,7 +321,7 @@ export default function AdminTimesheetReview({
       </Card>
 
       {/* Approve/Reject */}
-      {timesheet.status === "SUBMITTED" && (
+      {timesheet.status !== "APPROVED" && (
         <Card>
           <CardContent className="p-4 space-y-3">
             {showRejectForm && (
@@ -370,14 +370,12 @@ export default function AdminTimesheetReview({
         </Card>
       )}
 
-      {/* Status for already reviewed */}
-      {(timesheet.status === "APPROVED" || timesheet.status === "REJECTED") && (
+      {/* Status for approved */}
+      {timesheet.status === "APPROVED" && (
         <Card>
           <CardContent className="p-4 text-center">
             <Badge className={`${statusColors[timesheet.status]} text-sm px-3 py-1`}>
-              {timesheet.status === "APPROVED"
-                ? "This timesheet has been approved"
-                : "This timesheet was rejected"}
+              This timesheet has been approved
             </Badge>
           </CardContent>
         </Card>

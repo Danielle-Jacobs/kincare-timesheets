@@ -19,9 +19,9 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (timesheet.status !== "SUBMITTED") {
+  if (timesheet.status === "REJECTED") {
     return NextResponse.json(
-      { error: "Only submitted timesheets can be rejected" },
+      { error: "Timesheet is already rejected" },
       { status: 400 }
     );
   }

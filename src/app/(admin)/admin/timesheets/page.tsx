@@ -235,7 +235,7 @@ export default function AdminTimesheetsPage() {
 
                       {/* Actions */}
                       <div className="flex items-center gap-1 shrink-0">
-                        {ts.status === "SUBMITTED" && (
+                        {ts.status !== "APPROVED" && (
                           <>
                             <Button
                               variant="ghost"

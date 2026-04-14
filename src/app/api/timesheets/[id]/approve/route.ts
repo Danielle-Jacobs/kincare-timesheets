@@ -19,9 +19,9 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (timesheet.status !== "SUBMITTED") {
+  if (timesheet.status === "APPROVED") {
     return NextResponse.json(
-      { error: "Only submitted timesheets can be approved" },
+      { error: "Timesheet is already approved" },
       { status: 400 }
     );
   }
