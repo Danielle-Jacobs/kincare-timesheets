@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Eye, ImageOff } from "lucide-react";
+import { Camera, Eye, ImageOff, CheckCircle, XCircle, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface TimesheetPhoto {
   id: string;
@@ -53,6 +54,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function AdminTimesheetsPage() {
+  const queryClient = useQueryClient();
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
   const [filterCarer, setFilterCarer] = useState<string>("ALL");
 
@@ -80,6 +82,50 @@ export default function AdminTimesheetsPage() {
     },
     {}
   );
+
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/timesheets/${id}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+      toast.success("Timesheet approved");
+    },
+    onError: () => toast.error("Failed to approve"),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/timesheets/${id}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error("Failed to reject");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+      toast.success("Timesheet rejected");
+    },
+    onError: () => toast.error("Failed to reject"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/timesheets/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+      toast.success("Timesheet deleted");
+    },
+    onError: () => toast.error("Failed to delete"),
+  });
 
   return (
     <div className="space-y-4 max-w-4xl">
@@ -187,14 +233,59 @@ export default function AdminTimesheetsPage() {
                         </div>
                       </div>
 
-                      {/* Action */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 shrink-0"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {ts.status === "SUBMITTED" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              title="Approve"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                approveMutation.mutate(ts.id);
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Reject"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                rejectMutation.mutate(ts.id);
+                              }}
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="View"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          title="Delete"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (confirm("Delete this timesheet?")) {
+                              deleteMutation.mutate(ts.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

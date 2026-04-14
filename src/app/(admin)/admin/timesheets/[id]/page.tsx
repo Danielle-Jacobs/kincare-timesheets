@@ -16,7 +16,9 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface TimesheetEntry {
@@ -64,6 +66,7 @@ export default function AdminTimesheetReview({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
@@ -108,6 +111,19 @@ export default function AdminTimesheetReview({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/timesheets/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timesheets"] });
+      toast.success("Timesheet deleted");
+      router.push("/admin/timesheets");
+    },
+    onError: () => toast.error("Failed to delete"),
+  });
+
   if (isLoading) {
     return (
       <div className="space-y-3 max-w-3xl">
@@ -139,9 +155,25 @@ export default function AdminTimesheetReview({
             {monthNames[timesheet.month - 1]} {timesheet.year}
           </p>
         </div>
-        <Badge className={statusColors[timesheet.status]}>
-          {timesheet.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={statusColors[timesheet.status]}>
+            {timesheet.status}
+          </Badge>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            title="Delete timesheet"
+            onClick={() => {
+              if (confirm("Delete this timesheet and all its photos?")) {
+                deleteMutation.mutate();
+              }
+            }}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Review comment */}

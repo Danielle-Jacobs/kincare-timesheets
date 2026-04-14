@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Copy, Link, Users } from "lucide-react";
+import { Plus, Copy, Link, Users, Trash2 } from "lucide-react";
 
 interface ClientInfo {
   id: string;
@@ -94,6 +94,21 @@ export default function CarersPage() {
       toast.success("Client assignments updated");
     },
     onError: () => toast.error("Failed to update assignments"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/carers?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["carers"] });
+      toast.success("Carer deleted");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const openAssignDialog = (carer: Carer) => {
@@ -190,9 +205,24 @@ export default function CarersPage() {
                     </p>
                   )}
                 </div>
-                <Badge variant={carer.active ? "secondary" : "destructive"}>
-                  {carer.active ? "Active" : "Inactive"}
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant={carer.active ? "secondary" : "destructive"}>
+                    {carer.active ? "Active" : "Inactive"}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      if (confirm(`Delete ${carer.name}?`)) {
+                        deleteMutation.mutate(carer.id);
+                      }
+                    }}
+                    disabled={deleteMutation.isPending}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
               {/* Assigned clients */}
               <div className="flex items-center gap-2 pt-1 border-t">

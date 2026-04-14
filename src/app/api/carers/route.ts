@@ -74,3 +74,31 @@ export async function POST(req: Request) {
     uploadToken: carer.uploadToken,
   });
 }
+
+export async function DELETE(req: Request) {
+  const session = await auth();
+  if (!session || (session.user as Record<string, unknown>).role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  }
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+
+  const timesheetCount = await prisma.timesheet.count({
+    where: { carerId: id },
+  });
+  if (timesheetCount > 0) {
+    return NextResponse.json(
+      { error: `Cannot delete — ${timesheetCount} timesheet(s) linked to this carer` },
+      { status: 400 }
+    );
+  }
+
+  await prisma.carerClient.deleteMany({ where: { carerId: id } });
+  await prisma.user.delete({ where: { id } });
+
+  return NextResponse.json({ ok: true });
+}

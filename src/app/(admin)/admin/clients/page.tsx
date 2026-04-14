@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2, MapPin, Phone } from "lucide-react";
 
 interface ClientData {
   id: string;
@@ -49,6 +49,21 @@ export default function ClientsPage() {
       setForm({ name: "", address: "", phone: "" });
       toast.success("Client added");
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/clients?id=${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to delete");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Client deleted");
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   return (
@@ -102,16 +117,35 @@ export default function ClientsPage() {
       <div className="space-y-2">
         {clients?.map((client) => (
           <Card key={client.id}>
-            <CardContent className="p-4">
-              <p className="font-medium">{client.name}</p>
-              {client.address && (
-                <p className="text-sm text-muted-foreground">
-                  {client.address}
-                </p>
-              )}
-              {client.phone && (
-                <p className="text-sm text-muted-foreground">{client.phone}</p>
-              )}
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">{client.name}</p>
+                {client.address && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{client.address}</span>
+                  </p>
+                )}
+                {client.phone && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3 shrink-0" />
+                    {client.phone}
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                onClick={() => {
+                  if (confirm(`Delete ${client.name}?`)) {
+                    deleteMutation.mutate(client.id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </CardContent>
           </Card>
         ))}
